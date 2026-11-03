@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "123456789012",
+    "project_id": "keycursor-dummy-project",
+    "storage_bucket": "keycursor-dummy-project.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:123456789012:android:3d5a6f8b2f0c1d2e9a8b7c6d",
+        "android_client_info": {
+          "package_name": "com.aistudio.keycursor.kxmpzq"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDummyKeyForGitHubActionsBuildOnly12345"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
