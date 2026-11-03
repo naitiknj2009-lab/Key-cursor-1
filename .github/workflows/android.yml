@@ -6,66 +6,52 @@ on:
   pull_request:
     branches: [ "main", "master", "dev" ]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Check out source
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        cache: 'gradle'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
 
-    - name: Create local.properties and google-services.json
-      run: |
-        echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-        cat << 'EOF' > app/google-services.json
-        {
-          "project_info": {
-            "project_number": "123456789012",
-            "project_id": "keycursor-dummy-project",
-            "storage_bucket": "keycursor-dummy-project.appspot.com"
-          },
-          "client": [
-            {
-              "client_info": {
-                "mobilesdk_app_id": "1:123456789012:android:1234567890123456789012",
-                "android_client_info": {
-                  "package_name": "com.aistudio.keycursor.kxmpzq"
-                }
-              },
-              "oauth_client": [],
-              "api_key": [
-                {
-                  "current_key": "AIzaSyDummyKeyForGitHubActionsBuildOnly12345"
-                }
-              ],
-              "services": {
-                "analytics_service": {
-                  "status": 1
-                }
-              }
-            }
-          ],
-          "configuration_version": "1"
-        }
-        EOF
+      - name: Configure Android SDK path
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: Generate debug signing keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x ./gradlew
 
-    - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest
+      - name: Build Debug APK
+        run: ./gradlew --no-daemon assembleDebug --stacktrace
 
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: keycursor-debug-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Run Unit Tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: keycursor-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
