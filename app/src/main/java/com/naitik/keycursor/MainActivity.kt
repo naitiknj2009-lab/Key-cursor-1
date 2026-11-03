@@ -149,8 +149,7 @@ private fun GlassCard(modifier: Modifier = Modifier, content: @Composable Column
 @Composable
 private fun Dashboard(enabled: Boolean, onEnabled: (Boolean) -> Unit, openAccessibility: () -> Unit) {
     ScreenColumn {
-        Heading("Your keyboard, reimagined", "A pointer that
-moves with you.", "Control Android with the keyboard you already own.")
+        Heading("Your keyboard, reimagined", "A pointer that moves with you.", "Control Android with the keyboard you already own.")
         GlassCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
