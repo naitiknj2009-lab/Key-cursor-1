@@ -203,38 +203,110 @@ class CursorAccessibilityService : AccessibilityService() {
     }
 
     private inner class HudView : View(this@CursorAccessibilityService) {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val density = resources.displayMetrics.density
         private var lastX = 0f
         private var lastY = 0f
-        private var dragged = false
-        override fun onDraw(canvas: Canvas) {
-            paint.color = 0xEE3B2822.toInt()
-            canvas.drawRoundRect(RectF(0f, 0f, 154f, 54f), 27f, 27f, paint)
-            paint.color = 0xFFFFD98F.toInt()
-            paint.textSize = 14f
-            paint.typeface = android.graphics.Typeface.DEFAULT_BOLD
-            canvas.drawText(if (typingMode) "TYPE MODE" else "KEYCURSOR", 16f, 33f, paint)
+        private var downX = 0f
+        private var downY = 0f
+        private var draggingPanel = false
+        private var activeControl = -1
+        private var speedValue = getSharedPreferences("keycursor", MODE_PRIVATE).getFloat("speed", 1f)
+
+        private fun d(v: Float) = v * density
+        private fun rounded(c: Canvas, l: Float, t: Float, r: Float, b: Float, radius: Float, color: Int) {
+            p.color = color; p.style = Paint.Style.FILL
+            c.drawRoundRect(d(l), d(t), d(r), d(b), d(radius), d(radius), p)
         }
+        private fun label(c: Canvas, value: String, x: Float, y: Float, size: Float, color: Int, bold: Boolean = false) {
+            p.color = color; p.textSize = d(size); p.typeface = if (bold) android.graphics.Typeface.create("sans-serif-medium",  android.graphics.Typeface.BOLD) else android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
+            c.drawText(value, d(x), d(y), p)
+        }
+        override fun onDraw(canvas: Canvas) {
+            val w = width / density
+            val h = height / density
+            // Soft dark glass panel inspired by the supplied Guest Mode control screen.
+            rounded(canvas, 3f, 3f, w - 3f, h - 3f, 28f, 0xE92B2929.toInt())
+            p.color = 0x44FFFFFF; p.style = Paint.Style.STROKE; p.strokeWidth = d(1f)
+            canvas.drawRoundRect(d(3f), d(3f), d(w - 3f), d(h - 3f), d(28f), d(28f), p)
+            p.style = Paint.Style.FILL
+            // Header
+            label(canvas, "‹", 20f, 37f, 27f, 0xFFF5EEE8.toInt())
+            label(canvas, "KEYCURSOR", 53f, 29f, 12f, 0xFFF5EEE8.toInt(), true)
+            label(canvas, if (typingMode) "Typing mode" else "Pointer mode", 53f, 45f, 10f, 0xFFBEB5AE.toInt())
+            rounded(canvas, w - 57f, 17f, w - 19f, 39f, 12f, if (typingMode) 0xFF68615C.toInt() else 0xFFBCEB72.toInt())
+            p.color = 0xFFFFFFFF.toInt()
+            canvas.drawCircle(d(if (typingMode) w - 45f else w - 31f), d(28f), d(7f), p)
+            // Vertical speed slider and percent-like readout
+            label(canvas, "POINTER SPEED", 25f, 83f, 9f, 0xFFBEB5AE.toInt(), true)
+            val trackX = 45f
+            rounded(canvas, trackX - 6f, 104f, trackX + 6f, 264f, 8f, 0x665D5854)
+            val ratio = ((speedValue - .5f) / 2f).coerceIn(0f, 1f)
+            val knobY = 264f - ratio * 160f
+            rounded(canvas, trackX - 6f, knobY, trackX + 6f, 264f, 8f, 0xFFFFD98F.toInt())
+            rounded(canvas, 72f, knobY - 17f, 121f, knobY + 17f, 18f, 0xFF5B5550.toInt())
+            label(canvas, "${(speedValue * 100).toInt()}%", 82f, knobY + 5f, 12f, 0xFFFFF5E9.toInt(), true)
+            label(canvas, "SLOW", 28f, 284f, 8f, 0xFFBEB5AE.toInt())
+            label(canvas, "FAST", 28f, 98f, 8f, 0xFFBEB5AE.toInt())
+            // Mode / action cards along bottom, like the reference's device controls.
+            label(canvas, "QUICK CONTROLS", 22f, 317f, 9f, 0xFFBEB5AE.toInt(), true)
+            val names = listOf("Move", "Click", "Drag")
+            val symbols = listOf("↔", "●", "⇱")
+            for (i in 0..2) {
+                val left = 17f + i * 83f
+                rounded(canvas, left, 333f, left + 75f, 405f, 13f, if (activeControl == i) 0xFFD9F78D.toInt() else 0xFF484440.toInt())
+                label(canvas, symbols[i], left + 27f, 363f, 18f, if (activeControl == i) 0xFF342A25.toInt() else 0xFFF5EEE8.toInt(), true)
+                label(canvas, names[i], left + 18f, 389f, 10f, if (activeControl == i) 0xFF342A25.toInt() else 0xFFD4CCC5.toInt(), true)
+            }
+            label(canvas, "Drag panel to reposition", 70f, h - 12f, 8f, 0xFFBEB5AE.toInt())
+        }
+
         override fun onTouchEvent(event: MotionEvent): Boolean {
             val params = hudParams ?: return true
+            val x = event.x / density
+            val y = event.y / density
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> { lastX = event.rawX; lastY = event.rawY; dragged = false; return true }
+                MotionEvent.ACTION_DOWN -> {
+                    lastX = event.rawX; lastY = event.rawY
+                    downX = x; downY = y; draggingPanel = false
+                    activeControl = when {
+                        y in 333f..410f && x in 17f..92f -> 0
+                        y in 333f..410f && x in 100f..175f -> 1
+                        y in 333f..410f && x in 183f..258f -> 2
+                        else -> -1
+                    }
+                    return true
+                }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (event.rawX - lastX).toInt()
                     val dy = (event.rawY - lastY).toInt()
-                    if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > 3) dragged = true
-                    params.x = (params.x - dx).coerceAtLeast(0)
-                    params.y = (params.y + dy).coerceAtLeast(0)
+                    if (kotlin.math.abs(event.rawX - (lastX)) + kotlin.math.abs(event.rawY - lastY) > d(2f) && downY < 65f) draggingPanel = true
+                    if (draggingPanel) {
+                        params.x = (params.x - dx).coerceAtLeast(0)
+                        params.y = (params.y + dy).coerceAtLeast(0)
+                        runCatching { windowManager.updateViewLayout(this, params) }
+                    } else if (downX < 68f && downY in 95f..275f) {
+                        speedValue = (.5f + ((264f - y) / 160f).coerceIn(0f, 1f) * 2f)
+                        getSharedPreferences("keycursor", MODE_PRIVATE).edit().putFloat("speed", speedValue).apply()
+                        invalidate()
+                    }
                     lastX = event.rawX; lastY = event.rawY
-                    runCatching { windowManager.updateViewLayout(this, params) }
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragged) {
+                    if (!draggingPanel && downY < 60f && downX > width / density - 65f) {
                         typingMode = !typingMode
                         getSharedPreferences("keycursor", MODE_PRIVATE).edit().putBoolean("typing", typingMode).apply()
-                        invalidate()
+                    } else if (!draggingPanel && activeControl >= 0) {
+                        when (activeControl) {
+                            0 -> typingMode = false
+                            1 -> dispatchTap()
+                            2 -> { dragging = !dragging; }
+                        }
+                        getSharedPreferences("keycursor", MODE_PRIVATE).edit().putBoolean("typing", typingMode).apply()
                     }
+                    activeControl = -1
+                    invalidate()
                     return true
                 }
             }
