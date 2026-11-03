@@ -1,0 +1,6 @@
+{
+  "name": "KeyCursor",
+  "description": "Turn physical USB and Bluetooth keyboards into a smooth, system-wide mouse controller with custom cursors, floating controls, and gestures.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

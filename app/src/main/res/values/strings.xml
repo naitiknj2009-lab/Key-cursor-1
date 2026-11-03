@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">KeyCursor</string>
+    <string name="accessibility_service_description">KeyCursor intercepts keyboard inputs from physical USB and Bluetooth keyboards to render a system-wide mouse pointer and dispatch touch, tap, drag, and scroll gestures across Android.</string>
+    <string name="notification_channel_name">KeyCursor Service</string>
+    <string name="notification_channel_description">Displays status and quick controls when KeyCursor keyboard mouse control is active.</string>
+    <string name="notification_title">KeyCursor is Running</string>
+    <string name="notification_text">Keyboard mouse control active. Press Alt+C to toggle.</string>
+    <string name="notification_action_toggle">Toggle</string>
+    <string name="notification_action_stop">Stop</string>
+    <string name="notification_action_speed">Speed</string>
+    <string name="notification_action_dashboard">Open</string>
+</resources>
